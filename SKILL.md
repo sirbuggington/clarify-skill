@@ -36,15 +36,15 @@ The hook always skips:
 
 ### What the hook injects
 
-> **CLARIFY (active).** Before committing to a response, plan, or recommendation, check whether what you're about to say rests on assumptions you can't verify from what the user wrote. Evaluate the response you are about to produce, not the prompt's tone, length, or casual phrasing.
+> **CLARIFY (active).** Before committing to a response, plan, or recommendation, check whether what you're about to say rests on assumptions you can't verify from the user's words. Evaluate the response you're about to produce — not the prompt's tone, length, or casual phrasing.
 >
-> **Behavioral rule.** If your planned response would include a recommendation, plan, advice, prescription, diagnosis, choice between options, or "next steps," AND any user-unique fact (situation, goal, history, constraints, preferences) could materially change that response, your FIRST action MUST be `AskUserQuestion`. Answering first and acknowledging the missing context afterward is a protocol violation, not a graceful answer.
+> **Rule.** If your planned response would include a recommendation, plan, advice, prescription, diagnosis, choice between options, or "next steps," AND any user-unique fact (situation, goal, history, constraints, preferences) could materially change it, your FIRST action MUST be `AskUserQuestion`. Answering first and acknowledging the missing context afterward is a protocol violation, not a graceful answer.
 >
 > **Two-step gate:**
-> 1. **Can you resolve it yourself?** Use available tools — read files, search the web, check existing context, run any tool that might fill the gap. If a tool could answer, use the tool instead of asking. If no available tool could plausibly resolve the missing info (personal context, user intent, situation-specific facts), skip directly to step 2.
-> 2. **Otherwise →** the user is the unique source. Use the `AskUserQuestion` tool (not chat text) to ask. Cover only what the user uniquely knows: their situation, history, intent, preferences, constraints, stakes, or hard-to-reverse choices. State a default per question ("If unspecified, I will assume X") so they can one-click approve. Ask only the minimum needed; avoid intrusive details that don't directly affect the answer. **Keep each question and each option as short as possible without losing meaning — one short sentence per question, short labels per option, full detail only when meaning genuinely requires it.**
+> 1. **Resolve it yourself?** Use available tools — read files, search the web, check existing context, run any tool that might fill the gap. If a tool could answer, use the tool instead of asking. If no tool could plausibly resolve the missing info (personal context, user intent, situation-specific facts), go to step 2.
+> 2. **Ask the user** via `AskUserQuestion` (not chat text). Cover only what the user uniquely knows: situation, history, intent, preferences, constraints, stakes, hard-to-reverse choices. State a default per question ("If unspecified, I will assume X") so they can one-click approve. Ask only the minimum; avoid intrusive details that don't directly affect the answer. **Keep each question and each option as short as possible without losing meaning** — one short sentence per question, short labels per option, full detail only when meaning genuinely requires it.
 >
-> This applies to every kind of request — code, advice, decisions, plans, recommendations, analysis, writing help, anything. Skip for trivial reversible details and prompts that are genuinely unambiguous. Goal: ask only when you cannot give a complete, grounded answer without input the user alone can provide.
+> Applies to every kind of request — code, advice, decisions, plans, recommendations, analysis, writing help, anything. Skip for trivial reversible details and genuinely unambiguous prompts. Goal: ask only when you cannot give a complete, grounded answer without input the user alone can provide.
 
 ### How "on/off" works for this skill
 
@@ -52,8 +52,8 @@ Claude Code skills don't have a global on/off — they auto-activate when their 
 
 ### Slash command grammar
 
-- `/clarify` — show current mode + brief help. Same as `/clarify status`.
-- `/clarify status` — read-only display of current mode.
+- `/clarify` — show current mode + version + brief help. Same as `/clarify status`.
+- `/clarify status` — read-only display of current mode + version.
 - `/clarify on` — enable (or re-enable) the hook.
 - `/clarify off` — disable. Persistent until re-enabled (NOT per-session).
 - `/clarify help` — display the help block (see "Help output" below).
@@ -61,7 +61,7 @@ Claude Code skills don't have a global on/off — they auto-activate when their 
 When the user invokes any of the above, this skill is responsible for:
 1. Resolving config dir: `$CLAUDE_CONFIG_DIR` if set, else `~/.claude`.
 2. For `on`/`off`: writing `{"mode": "<chosen>"}` to `<config-dir>/clarify-mode.json` (overwrite atomically). Confirming in chat with one short line: `Clarify mode: <new-mode>`.
-3. For `status` or empty: print one line summarizing the current mode + a one-line hint at the other modes. Do NOT modify the file.
+3. For `status` or empty: print the version banner first (`clarify-skill v<VERSION>`, read from `<skill-dir>/VERSION` — the same directory this SKILL.md lives in; fallback `unknown` if file missing or unreadable), then one line summarizing the current mode + a one-line hint at the other modes. Do NOT modify the file.
 4. For `help`: print the Help output block below verbatim.
 5. NEVER re-inject the rule into your own current turn — the user is configuring, not working on a task.
 
