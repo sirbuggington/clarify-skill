@@ -67,48 +67,49 @@ If anything fails (file write, parse error), surface the specific error and sugg
 
 ### Help output
 
-When `/clarify help` (or `/clarify-help`) is invoked, print this block verbatim:
+When `/clarify help` (or `/clarify-help`) is invoked, render the help using markdown formatting (headers, bold, lists, inline code) — NOT a fenced code block. Use this exact content and structure verbatim:
 
-```
-/clarify — always-on clarification rule for Claude Code
+---
 
-What it does:
-  Runs a UserPromptSubmit hook on every prompt and (for non-trivial prompts)
-  injects a rule that tells Claude to evaluate whether its planned response
-  would rest on assumptions it can't verify. If yes, Claude is directed to
-  EITHER use available tools (file read, web search, etc.) to resolve the gap
-  OR ask the user via the AskUserQuestion tool. Domain-neutral — applies to
-  code, advice, decisions, plans, anything.
+## `/clarify` — always-on clarification rule for Claude Code
 
-Commands:
-  /clarify              show current mode (alias for /clarify status)
-  /clarify status       show current mode
-  /clarify on           enable the rule (default state)
-  /clarify off          disable; hook stays installed but exits silently
-  /clarify help         show this help (also: /clarify-help)
+**What it does**
 
-What gets skipped automatically (regardless of mode):
-  - Prompts starting with /peer or /peer-* (peer has its own rule)
-  - Prompts starting with /clarify or /clarify-*
-  - Prompts under 5 characters
-  - Pure acknowledgements (thanks, ok, hello, sure, etc.)
+Runs a UserPromptSubmit hook on every prompt and (for non-trivial prompts) injects a rule that tells Claude to evaluate whether its planned response would rest on assumptions it can't verify. If yes, Claude is directed to **either** use available tools (file read, web search, etc.) to resolve the gap **or** ask the user via the `AskUserQuestion` tool. Domain-neutral — applies to code, advice, decisions, plans, anything.
 
-Files:
-  Hook:        ~/.claude/hooks/clarify-route.py
-  Skill:       ~/.claude/skills/clarify/SKILL.md
-  Wrapper:     ~/.claude/commands/clarify.md (and clarify-help.md)
-  Mode state:  ~/.claude/clarify-mode.json   (or $CLAUDE_CONFIG_DIR equivalent)
+**Commands**
 
-Independence:
-  /clarify is fully independent of /peer. Either can be installed without the
-  other. When both are installed, /peer prompts skip the clarify hook so
-  /peer's own integrated rule handles them.
+- `/clarify` — show current mode (alias for `/clarify status`)
+- `/clarify status` — show current mode
+- `/clarify on` — enable the rule (default state)
+- `/clarify off` — disable; hook stays installed but exits silently
+- `/clarify help` — show this help (also: `/clarify-help`)
 
-Failure mode:
-  The hook fails OPEN — any error path exits 0 with no output, so your prompt
-  always reaches Claude. If the hook seems silently inactive, check that
-  ~/.claude/settings.json registers the hook under hooks.UserPromptSubmit.
-```
+**What gets skipped automatically** (regardless of mode)
+
+- Prompts starting with `/peer` or `/peer-*` (peer has its own rule)
+- Prompts starting with `/clarify` or `/clarify-*`
+- Prompts under 5 characters
+- Pure acknowledgements (`thanks`, `ok`, `hello`, `sure`, etc.)
+
+**Files**
+
+- **Hook:** `~/.claude/hooks/clarify-route.py`
+- **Skill:** `~/.claude/skills/clarify/SKILL.md`
+- **Wrapper:** `~/.claude/commands/clarify.md` (and `clarify-help.md`)
+- **Mode state:** `~/.claude/clarify-mode.json` (or `$CLAUDE_CONFIG_DIR` equivalent)
+
+**Independence**
+
+`/clarify` is fully independent of `/peer`. Either can be installed without the other. When both are installed, `/peer` prompts skip the clarify hook so `/peer`'s own integrated rule handles them.
+
+**Failure mode**
+
+The hook fails **OPEN** — any error path exits 0 with no output, so your prompt always reaches Claude. If the hook seems silently inactive, check that `~/.claude/settings.json` registers the hook under `hooks.UserPromptSubmit`.
+
+---
+
+Do not wrap the help in triple backticks. The code/file paths should be inline `code` only.
 
 ### Mode file format
 
