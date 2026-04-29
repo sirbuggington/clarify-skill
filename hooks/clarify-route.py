@@ -79,7 +79,16 @@ ACK_LIST = frozenset({
 INJECTION_TEXT = (
     "**CLARIFY (active).** Before committing to a response, plan, or "
     "recommendation, check whether what you're about to say rests on "
-    "assumptions you can't verify from what the user wrote.\n\n"
+    "assumptions you can't verify from what the user wrote. Evaluate the "
+    "response you are about to produce, not the prompt's tone, length, or "
+    "casual phrasing.\n\n"
+    "**Behavioral rule.** If your planned response would include a "
+    "recommendation, plan, advice, prescription, diagnosis, choice between "
+    "options, or \"next steps,\" AND any user-unique fact (situation, goal, "
+    "history, constraints, preferences) could materially change that "
+    "response, your FIRST action MUST be `AskUserQuestion`. Answering first "
+    "and acknowledging the missing context afterward is a protocol "
+    "violation, not a graceful answer.\n\n"
     "**Two-step gate:**\n"
     "1. **Can you resolve it yourself?** Use available tools — read files, "
     "search the web, check existing context, run any tool that might fill "
@@ -92,7 +101,10 @@ INJECTION_TEXT = (
     "constraints, stakes, or hard-to-reverse choices. State a default per "
     "question (\"If unspecified, I will assume X\") so they can one-click "
     "approve. Ask only the minimum needed; avoid intrusive details that "
-    "don't directly affect the answer.\n\n"
+    "don't directly affect the answer. **Keep each question and each option "
+    "as short as possible without losing meaning — one short sentence per "
+    "question, short labels per option, full detail only when meaning "
+    "genuinely requires it.**\n\n"
     "This applies to every kind of request — code, advice, decisions, plans, "
     "recommendations, analysis, writing help, anything. Skip for trivial "
     "reversible details and prompts that are genuinely unambiguous. Goal: "
@@ -145,6 +157,26 @@ def should_inject(prompt: str, mode: str) -> bool:
     return True  # light and strict both reach here; text differs in main()
 
 
+def _debug_log(decision: str, prompt: str, mode: str = '?') -> None:
+    """Append one line per hook invocation to ~/.claude/clarify-debug.log.
+
+    TEMPORARY DIAGNOSTIC — added to verify whether the hook is firing on
+    test prompts. Failures here are swallowed (fail-open, same as the hook
+    overall). Remove this function and its call sites once diagnosis is done.
+    """
+    try:
+        from datetime import datetime, timezone
+        log_path = CLAUDE_CONFIG_DIR / 'clarify-debug.log'
+        ts = datetime.now(timezone.utc).strftime('%Y-%m-%dT%H:%M:%SZ')
+        # First 80 chars of prompt, single-line, control chars stripped
+        snippet = ' '.join(prompt.split())[:80]
+        line = f'{ts}\tdecision={decision}\tmode={mode}\tprompt={snippet}\n'
+        with open(log_path, 'a', encoding='utf-8') as f:
+            f.write(line)
+    except Exception:
+        pass
+
+
 def main() -> None:
     raw = sys.stdin.read()
     if not raw or not raw.strip():
@@ -168,23 +200,60 @@ def main() -> None:
     # has its own integrated clarification rule. Avoid double-injection.
     # Case-insensitive: Claude Code's slash-command dispatcher is case-insensitive.
     if re.search(r'^\s*/peer($|\s|-\w)', prompt, re.IGNORECASE):
+        _debug_log('skip-peer', prompt)
         sys.exit(0)
 
     # Skip /clarify* invocations — the skill itself owns those turns.
     if re.search(r'^\s*/clarify($|\s|-\w)', prompt, re.IGNORECASE):
+        _debug_log('skip-clarify', prompt)
         sys.exit(0)
 
     mode = read_mode()
     if not should_inject(prompt, mode):
+        # Determine specific skip reason for the log
+        if mode == 'off':
+            reason = 'skip-mode-off'
+        elif len(prompt.strip()) < 5:
+            reason = 'skip-too-short'
+        else:
+            reason = 'skip-ack'
+        _debug_log(reason, prompt, mode)
         sys.exit(0)
+
+    # Check for a pending violation marker from the Stop hook backstop. If
+    # present, prepend a visible warning to the injection text and consume
+    # (delete) the marker so it only fires once.
+    violation_warning = ''
+    marker = CLAUDE_CONFIG_DIR / '.clarify-violation-pending'
+    if marker.exists():
+        try:
+            data = json.loads(marker.read_text(encoding='utf-8'))
+            snippet = data.get('prompt_snippet', '')
+            ts = data.get('timestamp', '')
+            violation_warning = (
+                "**[CLARIFY VIOLATION DETECTED — prior turn]** The structural "
+                "backstop flagged your last response as a recommendation "
+                f"produced without `AskUserQuestion`. Prior prompt at {ts}: "
+                f"`{snippet}`. The behavioral rule below requires "
+                "`AskUserQuestion` as the FIRST action when those conditions "
+                "are met. On this turn, comply with the rule strictly.\n\n"
+                "---\n\n"
+            )
+        except Exception:
+            pass
+        try:
+            marker.unlink()
+        except Exception:
+            pass
 
     result = {
         "hookSpecificOutput": {
             "hookEventName": "UserPromptSubmit",
-            "additionalContext": INJECTION_TEXT,
+            "additionalContext": violation_warning + INJECTION_TEXT,
         }
     }
 
+    _debug_log('inject' + ('+violation' if violation_warning else ''), prompt, mode)
     print(json.dumps(result, separators=(',', ':'), ensure_ascii=False))
 
 

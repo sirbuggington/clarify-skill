@@ -7,3 +7,4 @@ Thumbs.db
 .idea/
 *.swp
 *~
+.agent-work/
