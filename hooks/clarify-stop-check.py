@@ -185,6 +185,9 @@ def _classify_with_llm(user_prompt: str, assistant_text: str) -> bool:
         "---"
     )
     try:
+        extra = {}
+        if sys.platform == 'win32':
+            extra['creationflags'] = subprocess.CREATE_NO_WINDOW
         result = subprocess.run(
             ['claude', '-p', classifier_prompt, '--model', 'claude-haiku-4-5'],
             capture_output=True,
@@ -192,6 +195,7 @@ def _classify_with_llm(user_prompt: str, assistant_text: str) -> bool:
             timeout=60,
             encoding='utf-8',
             errors='replace',
+            **extra,
         )
         out = (result.stdout or '').strip().upper()
         _debug(f'classifier stdout={out[:50]!r} stderr={(result.stderr or "")[:100]!r}')
